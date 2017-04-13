@@ -333,7 +333,7 @@ out5 = tenfold(x=X, y=cleanTrain$SalePrice, nfold=10, method="nnet", size=100, l
 
 
 
-
+######Raw untuned fit. Not very accurate. (Kaggle error of 0.22)
 housing.gbm=gbm(log(SalePrice)~as.factor(MSSubClass)+as.factor(MSZoning)+LotFrontage+LotArea+as.factor(Street)+as.factor(Alley)+
                   as.factor(LotShape)+as.factor(LandContour)+as.factor(Utilities)+as.factor(LotConfig)+
                   as.factor(LandSlope)+as.factor(Neighborhood)+as.factor(Condition1)+as.factor(Condition2)+
@@ -355,14 +355,13 @@ housing.gbm=gbm(log(SalePrice)~as.factor(MSSubClass)+as.factor(MSZoning)+LotFron
 
 
 
-
-
 fitControl = trainControl(method = "cv", number = 10 )
 
 #
 # tune gbm
 #
 gbmGrid = expand.grid(.interaction.depth = c(1,5,9,13), .n.trees = c(250,500,750,1000), .shrinkage = c(0.01, 0.05, 0.1, 0.2 ), .n.minobsinnode = 10)
+
 gbmFit = train( log(SalePrice)~as.factor(MSSubClass)+as.factor(MSZoning)+LotFrontage+LotArea+as.factor(Street)+as.factor(Alley)+
                   as.factor(LotShape)+as.factor(LandContour)+as.factor(Utilities)+as.factor(LotConfig)+
                   as.factor(LandSlope)+as.factor(Neighborhood)+as.factor(Condition1)+as.factor(Condition2)+
@@ -383,6 +382,8 @@ gbmFit
 # The final values used for the model were n.trees = 750, interaction.depth = 13, shrinkage = 0.05
 # and n.minobsinnode = 10. 
 
+####Further hand tuning found n.trees = 500, interaction.depth = 13, shrinkage = 0.015
+# and n.minobsinnode = 15 to be an overall improvement over the caret tuning. RMSE = 0.1301. 
 
 housing.gbm.trained=gbm(log(SalePrice)~as.factor(MSSubClass)+as.factor(MSZoning)+LotFrontage+LotArea+as.factor(Street)+as.factor(Alley)+
                           as.factor(LotShape)+as.factor(LandContour)+as.factor(Utilities)+as.factor(LotConfig)+
@@ -398,7 +399,9 @@ housing.gbm.trained=gbm(log(SalePrice)~as.factor(MSSubClass)+as.factor(MSZoning)
                           as.factor(PavedDrive)+	WoodDeckSF+OpenPorchSF+EnclosedPorch+`3SsnPorch`+ScreenPorch+PoolArea+
                           as.factor(PoolQC)+as.factor(Fence)+as.factor(MiscFeature)+
                           MiscVal+MoSold+YrSold+as.factor(SaleType)+as.factor(SaleCondition),
-                          n.minobsinnode = 15,distribution="gaussian",interaction.depth = 13,shrinkage = 0.015,n.trees=500,data=cleanTrain)
+                          n.minobsinnode = 16,distribution="gaussian",interaction.depth = 11,shrinkage = 0.035,n.trees=480,data=cleanTrain)
+
+####Doing some CV fitting where I bootstrap in the response by using the current best prediction on the test set.
 
 cleanTestWithEstPrice = cbind(logPricesGBM, cleanTest)
 cv.gbm.xvalpr=rep(0,nrow(cleanTestWithEstPrice))
@@ -429,12 +432,12 @@ for(i in 1:10){
 
 #cv.gbm.xvalpr
 
-logPricesGBM = predict(housing.gbm.trained,type="response",n.trees=500, newdata=cleanTest)
+logPricesGBM = predict(housing.gbm.trained,type="response",n.trees=480, newdata=cleanTest)
 
 
 FinalPrice = exp(logPricesGBM)
 FinalPrice = exp(cv.gbm.xvalpr)
 
-write.csv(FinalPrice, file = "PredictedPrices.csv")
-###Best is in #2
+write.csv(FinalPrice, file = "PredictedPrices1.csv")
+###Best is noted in Kaggle (the settings are noted) 
 
